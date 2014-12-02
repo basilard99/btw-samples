@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -37,6 +38,18 @@ namespace E002
             basket.AddProduct("butter", 1);
 
             basket.AddProduct("pepper", 2);
+
+            Debug.Assert(basket.GetProductTotals().Count == 2);
+
+            basket.RemoveProduct("banana", 1);
+            Debug.Assert(basket.GetProductTotals().Count == 2);
+
+            basket.RemoveProduct("pepper", 1);
+            Debug.Assert(basket.GetProductTotals().Count == 2);
+            Debug.Assert(basket.GetProductTotals()["pepper"] == 1);
+
+            basket.RemoveProduct("butter", 10);
+            Debug.Assert(basket.GetProductTotals().Count == 1);
 
             // The code above just used normal blocking method calls
             // to add items direclty into the ProductBasket object instance.
@@ -202,6 +215,9 @@ namespace E002
                 Console.WriteLine("  {0}: {1}", total.Key, total.Value);
             }
 
+            ApplyMessage(basket, new RemoveProductFromBasketMessage("rosemary", 100));
+            Debug.Assert(basket.GetProductTotals().Count == 4);
+
             Print(@"
             And that is the basics of messaging!
 
@@ -274,16 +290,38 @@ namespace E002
                 Console.WriteLine("Shopping Basket said: I added {0} unit(s) of '{1}'", quantity, name);
             }
 
+            public void RemoveProduct(string name, double quantity)
+            {
+                double currentQuantity;
+                if (!_products.TryGetValue(name, out currentQuantity)) return;
+
+                if (quantity >= currentQuantity)
+                {
+                    _products.Remove(name);
+                    Console.WriteLine("Shopping Basket said: Quantity remaining was -0- or less so I removed {0}.", name);
+                }
+                else
+                {
+                    _products[name] = currentQuantity - quantity;
+                }
+            }
+
             public void When(AddProductToBasketMessage toBasketMessage)
             {
                 Console.Write("[Message Applied]: ");
                 AddProduct(toBasketMessage.Name, toBasketMessage.Quantity);
             }
 
+            public void When(RemoveProductFromBasketMessage removeFromBasketMessage)
+            {
+                Console.Write("[Message Applied]: ");
+                RemoveProduct(removeFromBasketMessage.Name, removeFromBasketMessage.Quantity);
+            }
+
             public IDictionary<string, double> GetProductTotals()
             {
                 return _products;
-            } 
+            }
         }
         [Serializable]
         public class AddProductToBasketMessage
@@ -299,6 +337,24 @@ namespace E002
             public override string ToString()
             {
                 return string.Format("Add {0} {1} to basket", Quantity, Name);
+            }
+        }
+
+        [Serializable]
+        public class RemoveProductFromBasketMessage
+        {
+            public readonly string Name;
+            public readonly double Quantity;
+
+            public RemoveProductFromBasketMessage(string name, double quantity)
+            {
+                Name = name;
+                Quantity = quantity;
+            }
+
+            public override string ToString()
+            {
+                return string.Format("Remove {0} {1} to basket", Quantity, Name);
             }
         }
     }
